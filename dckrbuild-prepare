@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Dpkg::Control::Info;
+use Dpkg::Deps;
+use File::Temp;
+
+my $dist = $ARGV[0] || "ubuntu20.04";
+
+my $control = Dpkg::Control::Info->new();
+
+my $dir = File::Temp->newdir();
+
+sub get_build_deps {
+	my $control = $_[0];
+	my $fields = $_[0]->get_source();
+	my $bd_indep; 
+	my $bd_arch;
+	my %options = (reduce_restrictions => 1);
+	if (exists $fields->{'Build-Depends-Arch'}) {
+		$bd_indep = deps_parse($fields->{'Build-Depends-Arch'}, %options);
+	}
+	if (exists $fields->{'Build-Depends-Indep'}) {
+		$bd_indep = deps_parse($fields->{'Build-Depends-Indep'}, %options);
+	}
+	return deps_concat(deps_parse($fields->{'Build-Depends'}, %options), $bd_arch, $bd_indep);
+}
+
+my $build_deps = get_build_deps($control);
+#my $build_conflicts = $control->get_source->{'Build-Conflicts'} || '';
+my $tag = "build-tmp:" . $control->get_source->{'Source'} . "-${dist}";
+
+mkdir "$dir/build-depends" or die("Failed to create $dir/build-depends");
+mkdir "$dir/build-depends/DEBIAN" or die("Failed to create $dir/build-depends/DEBIAN");
+
+open(my $pkg, '>', "$dir/build-depends/DEBIAN/control");
+print $pkg "Package: build-depends
+Version: 1.0
+Architecture: all
+Maintainer: Dummy Package Generator <dummy\@package.generator>
+Installed-Size: 0
+Section: devel
+Priority: optional
+Depends: ${build_deps}
+Description: Build dependencies
+";
+close($pkg);
+system("dpkg-deb -b $dir/build-depends $dir/build-depends_1.0_all.deb") and die("Failed to build dummy package");
+
+open(my $fh, '>', "$dir/Dockerfile.prepare");
+print $fh "FROM build:${dist}
+ENV DEBIAN_FRONTEND=noninteractive;
+
+RUN apt update
+COPY build-depends_1.0_all.deb .
+RUN dpkg -i build-depends_1.0_all.deb || :
+#RUN apt --fix-broken install --yes --no-install-recommends
+RUN apt -o Debug::pkgProblemResolver=yes --fix-broken install --yes --no-install-recommends
+RUN test \"`dpkg-query -W -f '\${db:Status-Status}' build-depends`\" = 'installed'
+#RUN apt --yes --no-install-recommends satisfy '${build_deps}'
+";
+close($fh);
+
+system("timeout 600 docker build --no-cache --network host --tag ${tag} --file $dir/Dockerfile.prepare $dir") and die("Failed to prepare build image");
