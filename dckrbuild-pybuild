@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+# vim: sts=4 sw=4 et
+
+import argparse
+import dulwich.porcelain
+import os
+import shutil
+import subprocess
+import tempfile
+
+from debian.deb822 import Sources, Changes
+from debian import changelog
+
+parser = argparse.ArgumentParser(description="Build package in docker")
+parser.add_argument("dist", type=str, default='ubuntu18.04', help="Distribution to build for")
+
+args = parser.parse_args()
+
+VDISTS = {'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'buster':'debian10'}
+DISTS = dict(VDISTS)
+DISTS.update([(v, k) for k,v in VDISTS.items()])
+
+control = Sources(open('debian/control'))
+pkg = control['Source']
+dist = DISTS[args.dist]
+vdist = VDISTS[dist]
+arch = 'amd64'
+tag = f"build-tmp:{pkg}-{vdist}"
+
+version = dulwich.porcelain.describe('.')
+if version[:1] == 'v':
+    version = version[1:]
+
+print(f"{pkg}: {version}")
+
+def build_command(tmp):
+    cmd = ['timeout', '600', 'docker', 'run']
+    if True:
+        cmd += [
+            f"--mount=type=bind,src={os.environ.get('HOME', '/tmp')}/.ccache/,dst=/ccache",
+            "--env=CCACHE_DIR=/ccache",
+#           "--env=PATH=/usr/lib/ccache:${PATH}",
+        ]
+    for e in ['DEB_BUILD_OPTIONS', 'DEB_BUILD_PROFILES']:
+        cmd += [f'--env={e}={os.environ.get(e, "")}']
+
+    cmd += ['--net=none']
+    cmd += ['--sysctl=net.ipv6.conf.all.disable_ipv6=0']
+    cmd += [f'--user={os.geteuid()}']
+    cmd += [f"-v{tmp}:/build", "-w/build/src"]
+    cmd += [tag, "dpkg-buildpackage", "-rfakeroot", "-uc", "-us", "-sa", "-j4"]
+    return cmd
+
+def export(dest, backport=False):
+    #dulwich.porcelain.clone('.', f'{tmp}/src')
+    pack = subprocess.Popen(('git', 'archive', '--format=tar', '--prefix=./src/', 'HEAD'), stdout=subprocess.PIPE)
+    if subprocess.run(('tar', 'x'), stdin=pack.stdout, cwd=dest).returncode:
+        raise RuntimeError("tar failed")
+    pack.wait()
+    if pack.returncode: raise RuntimeError("git archive failed")
+    if backport:
+        export_pristine_tar(dest)
+
+def export_pristine_tar(dest):
+    for t in [x[len(b'upstream/'):].decode('utf-8') for x in dulwich.porcelain.tag_list('.') if x.startswith(b'upstream/')]:
+        if not version.startswith(t + '-'):
+            continue
+        if subprocess.run(('pristine-tar', 'checkout', f'{dest}/{pkg}_{t}.orig.tar.gz')).returncode:
+            raise RuntimeError("pristine-tar failed")
+        break
+
+def bump_version(version, path, backport=False):
+    version += ('~' if backport else '+') + vdist
+    ch = changelog.Changelog(open(os.path.join(path, 'debian/changelog')))
+    ch.new_block(
+        package=pkg,
+        version=version,
+        distributions=dist,
+        urgency='low',
+        author="%s <%s>" % changelog.get_maintainer(),
+        date=changelog.format_date()
+    )
+    ch.add_change('''
+  * Build version bump
+''')
+    open(os.path.join(path, 'debian/changelog'), 'w').write(str(ch))
+    return version
+
+def fix_ddeb(changes, fn, dfn):
+    print(f"Fix {fn} -> {dfn}")
+    for hash in ('sha1', 'sha256', 'sha512'):
+        for l in changes.get(f'checksums-{hash}', []):
+            if l['name'] == fn:
+                l['name'] = dfn
+
+def copy_result(src, dest):
+    J = os.path.join
+    pkg_changes = f'{pkg}_{version}_{arch}.changes'
+    if not os.path.exists(dest):
+        os.mkdir(dest)
+    changes = Changes(open(J(src, pkg_changes)))
+    for f in changes['files']:
+        dfn = fn = f['name']
+        if fn.endswith('.ddeb'):
+            dfn = os.path.splitext(fn)[0] + '.deb'
+            f['name'] = dfn
+            fix_ddeb(changes, fn, dfn)
+        print(f'Copy {fn} -> {dfn}')
+        shutil.copy2(J(src, fn), J(dest, dfn))
+        open(J(dest, pkg_changes), 'w').write(str(changes))
+
+backport = b'pristine-tar' in dulwich.porcelain.branch_list('.')
+
+with tempfile.TemporaryDirectory() as tmp:
+    J = os.path.join
+    export(tmp, backport)
+    version = bump_version(version, J(tmp, 'src'), backport)
+    cmd = build_command(tmp)
+    if subprocess.run(cmd).returncode:
+        raise RuntimeError("dpkg-buildpackage failed")
+    copy_result(tmp, 'result')
