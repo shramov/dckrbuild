@@ -4,7 +4,11 @@ DIST="$1"
 FROM=
 
 case "$DIST" in
-	debian10|buster|stable)
+	debian11|bullseye|stable)
+		DIST="debian11"
+		FROM="debian:11"
+		;;
+	debian10|buster|oldstable)
 		DIST="debian10"
 		FROM="debian:10"
 		;;
