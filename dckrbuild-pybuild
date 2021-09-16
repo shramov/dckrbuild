@@ -13,6 +13,7 @@ from debian import changelog
 
 parser = argparse.ArgumentParser(description="Build package in docker")
 parser.add_argument("dist", type=str, default='ubuntu18.04', help="Distribution to build for")
+parser.add_argument("-r", "--reference", type=str, default='HEAD', help="Commit to build")
 
 args = parser.parse_args()
 
@@ -53,7 +54,7 @@ def build_command(tmp):
 
 def export(dest, backport=False):
     #dulwich.porcelain.clone('.', f'{tmp}/src')
-    pack = subprocess.Popen(('git', 'archive', '--format=tar', '--prefix=./src/', 'HEAD'), stdout=subprocess.PIPE)
+    pack = subprocess.Popen(('git', 'archive', '--format=tar', '--prefix=./src/', args.reference), stdout=subprocess.PIPE)
     if subprocess.run(('tar', 'x'), stdin=pack.stdout, cwd=dest).returncode:
         raise RuntimeError("tar failed")
     pack.wait()
