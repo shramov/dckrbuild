@@ -4,6 +4,7 @@
 import argparse
 import dulwich.porcelain
 import os
+import pathlib
 import shutil
 import subprocess
 import tempfile
@@ -72,7 +73,7 @@ def export_pristine_tar(dest):
 
 def bump_version(version, path, backport=False):
     version += ('~' if backport else '+') + vdist
-    ch = changelog.Changelog(open(os.path.join(path, 'debian/changelog')))
+    ch = changelog.Changelog(open(path / 'debian/changelog'))
     ch.new_block(
         package=pkg,
         version=version,
@@ -84,7 +85,7 @@ def bump_version(version, path, backport=False):
     ch.add_change('''
   * Build version bump
 ''')
-    open(os.path.join(path, 'debian/changelog'), 'w').write(str(ch))
+    open(path / 'debian/changelog', 'w').write(str(ch))
     return version
 
 def fix_ddeb(changes, fn, dfn):
@@ -95,28 +96,27 @@ def fix_ddeb(changes, fn, dfn):
                 l['name'] = dfn
 
 def copy_result(src, dest):
-    J = os.path.join
     pkg_changes = f'{pkg}_{version}_{arch}.changes'
-    if not os.path.exists(dest):
-        os.mkdir(dest)
-    changes = Changes(open(J(src, pkg_changes)))
+    if not dest.exists():
+        dest.mkdir()
+    changes = Changes(open(src / pkg_changes))
     for f in changes['files']:
-        dfn = fn = f['name']
-        if fn.endswith('.ddeb'):
-            dfn = os.path.splitext(fn)[0] + '.deb'
-            f['name'] = dfn
-            fix_ddeb(changes, fn, dfn)
+        dfn = fn = pathlib.Path(f['name'])
+        if fn.suffix == '.ddeb':
+            dfn = fn.stem + '.deb'
+            f['name'] = str(dfn)
+            fix_ddeb(changes, str(fn), str(dfn))
         print(f'Copy {fn} -> {dfn}')
-        shutil.copy2(J(src, fn), J(dest, dfn))
-        open(J(dest, pkg_changes), 'w').write(str(changes))
+        shutil.copy2(src / fn, dest / dfn)
+        open(dest / pkg_changes, 'w').write(str(changes))
 
 backport = b'pristine-tar' in dulwich.porcelain.branch_list('.')
 
-with tempfile.TemporaryDirectory() as tmp:
-    J = os.path.join
+with tempfile.TemporaryDirectory() as tmpdir:
+    tmp = pathlib.Path(tmpdir)
     export(tmp, backport)
-    version = bump_version(version, J(tmp, 'src'), backport)
+    version = bump_version(version, tmp / 'src', backport)
     cmd = build_command(tmp)
     if subprocess.run(cmd).returncode:
         raise RuntimeError("dpkg-buildpackage failed")
-    copy_result(tmp, 'result')
+    copy_result(tmp, pathlib.Path('result'))
