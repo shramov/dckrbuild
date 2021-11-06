@@ -3,6 +3,10 @@
 
 import argparse
 import dulwich.porcelain
+from dulwich.config import ConfigFile, parse_submodules
+from dulwich.repo import Repo
+from dulwich.objectspec import parse_tree
+import io
 import os
 import pathlib
 import shutil
@@ -53,15 +57,41 @@ def build_command(tmp):
     cmd += [tag, "dpkg-buildpackage", "-rfakeroot", "-uc", "-us", "-sa", "-j4"]
     return cmd
 
-def export(dest, backport=False):
-    #dulwich.porcelain.clone('.', f'{tmp}/src')
-    pack = subprocess.Popen(('git', 'archive', '--format=tar', '--prefix=./src/', args.reference), stdout=subprocess.PIPE)
+def export(dest, ref='HEAD', repo=pathlib.Path('.'), backport=False, submodules=False):
+    if not dest.exists():
+        dest.mkdir(parents=True)
+    pack = subprocess.Popen(('git', 'archive', '--format=tar', '--prefix=./', ref), stdout=subprocess.PIPE, cwd=repo)
     if subprocess.run(('tar', 'x'), stdin=pack.stdout, cwd=dest).returncode:
         raise RuntimeError("tar failed")
     pack.wait()
     if pack.returncode: raise RuntimeError("git archive failed")
+
     if backport:
         export_pristine_tar(dest)
+
+    if submodules:
+        export_submodules(dest, ref, repo)
+
+def submodule_commit(repo, path, treeish=b"HEAD"):
+    tree = parse_tree(repo, treeish)
+    mode, sha = tree.lookup_path(repo.get_object, path)
+    if mode & 0o100000 == 0:
+        raise RuntimeError(f"{path} is not submodule")
+    return sha
+
+def export_submodules(dest, ref, repo):
+    with Repo(repo) as r:
+        try:
+            blob = dulwich.porcelain.get_object_by_path(r, '.gitmodules', ref)
+        except KeyError:
+            return
+
+        for k,url,path in parse_submodules(ConfigFile.from_file(io.BytesIO(blob.data))):
+            sha = submodule_commit(r, path, ref)
+            path = pathlib.Path(path.decode('utf-8'))
+            print(f'Export submodule {path}: {sha}')
+            export(dest / path, sha.decode('ascii'), repo=repo / path)
+
 
 def export_pristine_tar(dest):
     for t in [x[len(b'upstream/'):].decode('utf-8') for x in dulwich.porcelain.tag_list('.') if x.startswith(b'upstream/')]:
@@ -114,7 +144,7 @@ backport = b'pristine-tar' in dulwich.porcelain.branch_list('.')
 
 with tempfile.TemporaryDirectory() as tmpdir:
     tmp = pathlib.Path(tmpdir)
-    export(tmp, backport)
+    export(tmp / 'src', ref=args.reference, backport=backport, submodules=True)
     version = bump_version(version, tmp / 'src', backport)
     cmd = build_command(tmp)
     if subprocess.run(cmd).returncode:
