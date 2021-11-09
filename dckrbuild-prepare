@@ -6,6 +6,10 @@ use warnings;
 use Dpkg::Control::Info;
 use Dpkg::Deps;
 use File::Temp;
+use Getopt::Long;
+
+my $inplace = 0;
+GetOptions('inplace' => \$inplace);
 
 my $dist = $ARGV[0] || "ubuntu20.04";
 
@@ -30,7 +34,6 @@ sub get_build_deps {
 
 my $build_deps = get_build_deps($control);
 #my $build_conflicts = $control->get_source->{'Build-Conflicts'} || '';
-my $tag = "build-tmp:" . $control->get_source->{'Source'} . "-${dist}";
 
 mkdir "$dir/build-depends" or die("Failed to create $dir/build-depends");
 mkdir "$dir/build-depends/DEBIAN" or die("Failed to create $dir/build-depends/DEBIAN");
@@ -49,18 +52,33 @@ Description: Build dependencies
 close($pkg);
 system("dpkg-deb -b $dir/build-depends $dir/build-depends_1.0_all.deb") and die("Failed to build dummy package");
 
-open(my $fh, '>', "$dir/Dockerfile.prepare");
+open(my $fh, '>', "$dir/prepare.sh");
+print $fh "
+export DEBIAN_FRONTEND=noninteractive;
+
+apt update
+dpkg -i build-depends_1.0_all.deb || :
+#apt --fix-broken install --yes --no-install-recommends
+apt -o Debug::pkgProblemResolver=yes --fix-broken install --yes --no-install-recommends
+test \"`dpkg-query -W -f '\${db:Status-Status}' build-depends`\" = 'installed'
+#apt --yes --no-install-recommends satisfy '${build_deps}'
+";
+close($fh);
+
+open($fh, '>', "$dir/Dockerfile.prepare");
 print $fh "FROM build:${dist}
 ENV DEBIAN_FRONTEND=noninteractive;
 
 RUN apt update
 COPY build-depends_1.0_all.deb .
-RUN dpkg -i build-depends_1.0_all.deb || :
-#RUN apt --fix-broken install --yes --no-install-recommends
-RUN apt -o Debug::pkgProblemResolver=yes --fix-broken install --yes --no-install-recommends
-RUN test \"`dpkg-query -W -f '\${db:Status-Status}' build-depends`\" = 'installed'
-#RUN apt --yes --no-install-recommends satisfy '${build_deps}'
+COPY $dir/prepare.sh prepare.sh
+RUN sh prepare.sh
 ";
 close($fh);
 
-system("timeout 600 docker build --no-cache --network host --tag ${tag} --file $dir/Dockerfile.prepare $dir") and die("Failed to prepare build image");
+if ($inplace == 1) {
+	system("cd $dir && sh $dir/prepare.sh") and die("Failed to install dependencies");
+} else {
+	my $tag = "build-tmp:" . $control->get_source->{'Source'} . "-${dist}";
+	system("timeout 600 docker build --no-cache --network host --tag ${tag} --file $dir/Dockerfile.prepare $dir") and die("Failed to prepare build image");
+}
