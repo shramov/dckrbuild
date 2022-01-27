@@ -7,18 +7,22 @@ case "$DIST" in
 	debian11|bullseye|stable)
 		DIST="debian11"
 		FROM="debian:11"
+		NAME="buillseye"
 		;;
 	debian10|buster|oldstable)
 		DIST="debian10"
 		FROM="debian:10"
+		NAME="buster"
 		;;
 	ubuntu20.04|focal)
 		DIST="ubuntu20.04"
 		FROM="ubuntu:20.04"
+		NAME="focal"
 		;;
 	ubuntu18.04|bionic)
 		DIST="ubuntu18.04"
 		FROM="ubuntu:18.04"
+		NAME="bionic"
 		;;
 	*)
 		echo "Unknown distribution: $DIST"
