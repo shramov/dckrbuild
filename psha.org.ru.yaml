@@ -1,0 +1,7 @@
+prefix: build
+key:
+  - psha.org.ru.gpg
+repo:
+  - deb http://psha.org.ru/debian {codename} contrib backports
+
+# vim: sts=2 sw=2 et
