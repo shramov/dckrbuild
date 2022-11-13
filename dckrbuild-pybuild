@@ -19,6 +19,7 @@ from debian import changelog
 parser = argparse.ArgumentParser(description="Build package in docker")
 parser.add_argument("dist", type=str, default='ubuntu18.04', help="Distribution to build for")
 parser.add_argument("-r", "--reference", type=str, default='HEAD', help="Commit to build")
+parser.add_argument("--rebuild", type=str, default='', help="Binary rebuild suffix")
 
 args = parser.parse_args()
 
@@ -103,6 +104,8 @@ def export_pristine_tar(dest):
 
 def bump_version(version, path, backport=False):
     version += ('~' if backport else '+') + vdist
+    if args.rebuild:
+        version += '+' + args.rebuild
     ch = changelog.Changelog(open(path / 'debian/changelog'))
     ch.new_block(
         package=pkg,
