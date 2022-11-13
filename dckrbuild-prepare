@@ -9,7 +9,12 @@ use File::Temp;
 use Getopt::Long;
 
 my $inplace = 0;
-GetOptions('inplace' => \$inplace);
+my $buildtype = '';
+GetOptions('inplace' => \$inplace, 'build-type=s' => \$buildtype);
+
+if ($buildtype ne '') {
+	$buildtype = "-$buildtype";
+}
 
 my $dist = $ARGV[0] || "ubuntu20.04";
 
@@ -66,12 +71,12 @@ test \"`dpkg-query -W -f '\${db:Status-Status}' build-depends`\" = 'installed'
 close($fh);
 
 open($fh, '>', "$dir/Dockerfile.prepare");
-print $fh "FROM build:${dist}
+print $fh "FROM build${buildtype}:${dist}
 ENV DEBIAN_FRONTEND=noninteractive;
 
 RUN apt update
 COPY build-depends_1.0_all.deb .
-COPY $dir/prepare.sh prepare.sh
+COPY prepare.sh prepare.sh
 RUN sh prepare.sh
 ";
 close($fh);
