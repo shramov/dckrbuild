@@ -97,7 +97,7 @@ def export_pristine_tar(dest):
     for t in [x[len(b'upstream/'):].decode('utf-8') for x in dulwich.porcelain.tag_list('.') if x.startswith(b'upstream/')]:
         if not version.startswith(t + '-'):
             continue
-        if subprocess.run(('pristine-tar', 'checkout', f'{dest}/{pkg}_{t}.orig.tar.gz')).returncode:
+        if subprocess.run(('pristine-tar', 'checkout', f'{dest}/../{pkg}_{t}.orig.tar.gz')).returncode:
             raise RuntimeError("pristine-tar failed")
         break
 
