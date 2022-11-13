@@ -22,7 +22,7 @@ parser.add_argument("-r", "--reference", type=str, default='HEAD', help="Commit 
 
 args = parser.parse_args()
 
-VDISTS = {'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'bullseye':'debian11', 'buster':'debian10'}
+VDISTS = {'jammy':'ubuntu22.04', 'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'bullseye':'debian11', 'buster':'debian10'}
 DISTS = dict(VDISTS)
 DISTS.update([(v, k) for k,v in VDISTS.items()])
 
