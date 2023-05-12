@@ -150,6 +150,6 @@ with tempfile.TemporaryDirectory() as tmpdir:
     export(tmp / 'src', ref=args.reference, backport=backport, submodules=True)
     version = bump_version(version, tmp / 'src', backport)
     cmd = build_command(tmp)
-    if subprocess.run(cmd).returncode:
-        raise RuntimeError("dpkg-buildpackage failed")
+    if r := subprocess.run(cmd).returncode:
+        raise RuntimeError(f"dpkg-buildpackage failed: {r}")
     copy_result(tmp, pathlib.Path('result'))
