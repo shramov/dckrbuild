@@ -41,7 +41,7 @@ if version[:1] == 'v':
 print(f"{pkg}: {version}")
 
 def build_command(tmp):
-    cmd = ['timeout', '600', 'docker', 'run', '--rm']
+    cmd = ['timeout', '900', 'docker', 'run', '--rm']
     if True:
         cmd += [
             f"--mount=type=bind,src={os.environ.get('HOME', '/tmp')}/.ccache/,dst=/ccache",
