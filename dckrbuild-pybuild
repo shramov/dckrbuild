@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser(description="Build package in docker")
 parser.add_argument("dist", type=str, default='ubuntu18.04', help="Distribution to build for")
 parser.add_argument("-r", "--reference", type=str, default='HEAD', help="Commit to build")
 parser.add_argument("--rebuild", type=str, default='', help="Binary rebuild suffix")
+parser.add_argument("-j", dest='jobs', type=int, default=4, help="Parallel jobs")
 
 args = parser.parse_args()
 
@@ -54,7 +55,7 @@ def build_command(tmp):
     cmd += ['--sysctl=net.ipv6.conf.all.disable_ipv6=0']
     cmd += [f'--user={os.geteuid()}']
     cmd += [f"-v{tmp}:/build", "-w/build/src"]
-    cmd += [tag, "dpkg-buildpackage", "-rfakeroot", "-uc", "-us", "-sa", "-j4"]
+    cmd += [tag, "dpkg-buildpackage", "-rfakeroot", "-uc", "-us", "-sa", f"-j{args.jobs}"]
     return cmd
 
 def export(dest, ref='HEAD', repo=pathlib.Path('.'), backport=False, submodules=False):
