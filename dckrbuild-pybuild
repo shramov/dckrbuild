@@ -25,8 +25,15 @@ parser.add_argument("-n", "--dry-run", dest='dry_run', action='store_true', help
 
 args = parser.parse_args()
 
-VDISTS = {'jammy':'ubuntu22.04', 'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'bookworm':'debian12', 'bullseye':'debian11', 'buster':'debian10'}
-DISTS = {v: k for k,v in VDISTS.items()}
+DISTS = {
+    'ubuntu22.04': 'jammy',
+    'ubuntu20.04': 'focal',
+    'ubuntu18.04': 'bionic',
+    'debian12': 'bookworm',
+    'debian11': 'bullseye',
+    'debian10': 'buster',
+}
+VDISTS = {v: k for k,v in DISTS.items()}
 
 control = Sources(open('debian/control'))
 pkg = control['Source']
