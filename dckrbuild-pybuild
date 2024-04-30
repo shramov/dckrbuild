@@ -23,13 +23,12 @@ parser.add_argument("--rebuild", type=str, default='', help="Binary rebuild suff
 
 args = parser.parse_args()
 
-VDISTS = {'jammy':'ubuntu22.04', 'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'bullseye':'debian11', 'buster':'debian10'}
-DISTS = dict(VDISTS)
-DISTS.update([(v, k) for k,v in VDISTS.items()])
+VDISTS = {'jammy':'ubuntu22.04', 'focal':'ubuntu20.04', 'bionic':'ubuntu18.04', 'bookworm':'debian12', 'bullseye':'debian11', 'buster':'debian10'}
+DISTS = {v: k for k,v in VDISTS.items()}
 
 control = Sources(open('debian/control'))
 pkg = control['Source']
-dist = DISTS[args.dist]
+dist = DISTS.get(args.dist, args.dist)
 vdist = VDISTS[dist]
 arch = 'amd64'
 tag = f"build-tmp:{pkg}-{vdist}"
