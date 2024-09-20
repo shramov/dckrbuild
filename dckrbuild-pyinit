@@ -22,6 +22,7 @@ if args.config:
     args.repo += cfg.get('repo', [])
 
 CODENAME = {
+    'ubuntu24.04': 'noble',
     'ubuntu22.04': 'jammy',
     'ubuntu20.04': 'focal',
     'ubuntu18.04': 'bionic',

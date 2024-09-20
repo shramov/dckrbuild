@@ -26,6 +26,7 @@ parser.add_argument("-n", "--dry-run", dest='dry_run', action='store_true', help
 args = parser.parse_args()
 
 DISTS = {
+    'ubuntu24.04': 'noble',
     'ubuntu22.04': 'jammy',
     'ubuntu20.04': 'focal',
     'ubuntu18.04': 'bionic',
