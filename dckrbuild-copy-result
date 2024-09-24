@@ -8,7 +8,12 @@ import shutil
 from debian.changelog import Changelog
 from debian.deb822 import Sources, Changes
 
-DISTMAP = {'ubuntu20.04':'focal', 'ubuntu18.04':'bionic'}
+DISTMAP = {
+    'ubuntu24.04':'noble',
+    'ubuntu22.04':'jammy',
+    'ubuntu20.04':'focal',
+    'ubuntu18.04':'bionic',
+}
 
 parser = argparse.ArgumentParser(description="Prepare build results")
 parser.add_argument("--section", type=str, help="Set Section field in changes")
