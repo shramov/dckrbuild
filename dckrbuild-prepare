@@ -29,7 +29,7 @@ sub get_build_deps {
 	my $bd_arch;
 	my %options = (reduce_restrictions => 1);
 	if (exists $fields->{'Build-Depends-Arch'}) {
-		$bd_indep = deps_parse($fields->{'Build-Depends-Arch'}, %options);
+		$bd_arch = deps_parse($fields->{'Build-Depends-Arch'}, %options);
 	}
 	if (exists $fields->{'Build-Depends-Indep'}) {
 		$bd_indep = deps_parse($fields->{'Build-Depends-Indep'}, %options);
