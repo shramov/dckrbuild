@@ -27,6 +27,7 @@ parser.add_argument("--with-network", action='store_true', help="Enable networki
 args = parser.parse_args()
 
 DISTS = {
+    'ubuntu26.04': 'resolute',
     'ubuntu24.04': 'noble',
     'ubuntu22.04': 'jammy',
     'ubuntu20.04': 'focal',
