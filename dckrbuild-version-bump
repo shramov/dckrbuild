@@ -24,6 +24,8 @@ sub git_version() {
     }
     $v =~ s/^\s+|\s+$//g;
     $v =~ s/^v//;
+    $v =~ s/_/~/;
+    $v =~ s/%/:/; # Epoch
     return $v;
 }
 
