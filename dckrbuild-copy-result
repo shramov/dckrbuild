@@ -9,6 +9,7 @@ from debian.changelog import Changelog
 from debian.deb822 import Sources, Changes
 
 DISTMAP = {
+    'ubuntu26.04':'resolute',
     'ubuntu24.04':'noble',
     'ubuntu22.04':'jammy',
     'ubuntu20.04':'focal',
