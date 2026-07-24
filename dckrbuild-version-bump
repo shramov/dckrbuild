@@ -1,7 +1,9 @@
 #!/usr/bin/perl
 # vim: sts=4 sw=4 et
 
+use strict;
 use warnings;
+
 use Dpkg::Changelog::Parse qw(changelog_parse);
 use POSIX qw(locale_h strftime);
 use Getopt::Long;
@@ -10,11 +12,11 @@ setlocale(LC_TIME, "C");
 
 my $ci_tag = "";
 my $ci_branch = "";
-GetOptions('tag=s' => \$ci_tag, 'branch=s' => \$ci_branch);
+GetOptions('tag:s' => \$ci_tag, 'branch:s' => \$ci_branch);
 
 my $dist = $ARGV[0] || "ubuntu20.04";
 
-print("Tag: $ci_tag, Branch: $ci_branch, Dist: $dist\n");
+print("Tag: '$ci_tag', Branch: '$ci_branch', Dist: $dist\n");
 
 sub git_version() {
     my $v = $ci_tag;
@@ -39,7 +41,7 @@ sub target_distribution($) {
     return $t;
 }
 
-$changelog = changelog_parse(file => 'debian/changelog');
+my $changelog = changelog_parse(file => 'debian/changelog');
 
 die "No existing version in changelog" unless exists $changelog->{Version};
 my $gitv = git_version();
@@ -72,4 +74,4 @@ close($ifp);
 
 close($fp);
 
-rename('debian/changelog.bump', 'debian/changelog');
+rename('debian/changelog.bump', 'debian/changelog') or die "Failed to rename changelog";
