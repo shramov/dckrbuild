@@ -24,18 +24,20 @@ sub git_version() {
         $v = `git describe --tags`;
         die "Git describe failed" if $? != 0;
     }
+    my $raw = $v;
     $v =~ s/^\s+|\s+$//g;
     $v =~ s/^v//;
     $v =~ s/_/~/;
     $v =~ s/%/:/; # Epoch
-    return $v;
+    return ($raw, $v);
 }
 
 sub target_distribution($) {
     my $v = shift;
     my $t = "unstable";
-    if ($ci_tag eq "") { $t="experimental"; }
-    if (system("git describe --exact-match --tags v$v 2>/dev/null")) {
+    if ($v eq "") {
+        $t = "experimental";
+    } elsif (system("git describe --exact-match --tags '$v' 1>/dev/null 2>/dev/null")) {
         $t = "experimental";
     }
     return $t;
@@ -44,8 +46,8 @@ sub target_distribution($) {
 my $changelog = changelog_parse(file => 'debian/changelog');
 
 die "No existing version in changelog" unless exists $changelog->{Version};
-my $gitv = git_version();
-my $target = target_distribution($gitv);
+my ($rawv, $gitv) = git_version();
+my $target = target_distribution($rawv);
 
 if ($target eq "experimental") {
     $gitv = "$gitv~exp";
