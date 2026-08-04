@@ -27,15 +27,15 @@ arch = 'amd64'
 changelog = Changelog(open('debian/changelog'))
 version = str(changelog.version)
 
-def fix_ddeb(changes, fn, dfn):
+def fix_ddeb(changes: Changes, fn: pathlib.Path, dfn: pathlib.Path):
     print(f"Fix {fn} -> {dfn}")
     for hash in ('sha1', 'sha256', 'sha512'):
         for l in changes.get(f'checksums-{hash}', []):
             if l['name'] == fn:
                 l['name'] = dfn
 
-def copy_result(src, dest):
-    pkg_changes = f'{pkg}_{version}_{arch}.changes'
+def copy_result(src: pathlib.Path, dest: pathlib.Path):
+    pkg_changes = f'{pkg}_{version.split(":", 1)[-1]}_{arch}.changes'
     if not dest.exists():
         dest.mkdir()
     changes = Changes(open(src / pkg_changes))
